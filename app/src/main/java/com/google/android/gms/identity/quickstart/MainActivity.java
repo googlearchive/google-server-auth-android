@@ -70,10 +70,6 @@ public class MainActivity extends FragmentActivity implements
     // Should we resolve sign-in errors?
     private boolean mShouldResolve = false;
 
-    // Used to store the result most recently returned by Google Play
-    // services until the user clicks 'sign in'.
-    private ConnectionResult mSignInResult;
-
     // Separate object to handle the logic for Server Auth Code exchange, which is optional
     private ServerAuthHandler mServerAuthHandler;
 
@@ -265,16 +261,10 @@ public class MainActivity extends FragmentActivity implements
             // may not be installed, such as the Android Wear application. You may need to use a
             // second GoogleApiClient to manage the application's optional APIs.
             Log.w(TAG, "API Unavailable.");
-        } else if (!mIsResolving) {
-            // We do not have a resolution in progress so we should store the latest
-            // error resolution intent for use when the sign in button is clicked.
-            mSignInResult = result;
-
-            if (mShouldResolve) {
-                // The user already clicked the sign in button, we should resolve errors until
-                // success or they click cancel.
-                resolveSignInError();
-            }
+        } else if (!mIsResolving && mShouldResolve) {
+            // The user already clicked the sign in button, we should resolve errors until
+            // success or they click cancel.
+            resolveSignInError(result);
         } else {
             Log.w(TAG, "Already resolving.");
         }
@@ -296,33 +286,31 @@ public class MainActivity extends FragmentActivity implements
      * preventing the user from being signed in.  This is normally the account picker dialog or the
      * consent screen where the user approves the scopes you requested,
      */
-    private void resolveSignInError() {
-        if (mSignInResult.hasResolution()) {
+    private void resolveSignInError(ConnectionResult result) {
+        if (result.hasResolution()) {
             // Google play services provided a resolution
             try {
                 // Attempt to resolve the Google Play Services connection error
+                result.startResolutionForResult(this, RC_SIGN_IN);
                 mIsResolving = true;
-                mSignInResult.startResolutionForResult(this, RC_SIGN_IN);
             } catch (SendIntentException e) {
                 Log.e(TAG, "Sign in intent could not be sent.", e);
 
                 // The intent was canceled before it was sent.  Attempt to connect to
                 // get an updated ConnectionResult.
-                mShouldResolve = true;
                 mGoogleApiClient.connect();
             }
         } else {
             // Google play services did not provide a resolution, display error message
-            displayError();
+            displayError(result.getErrorCode());
         }
     }
 
-    private void displayError() {
-        final int mSignInError = mSignInResult.getErrorCode();
-        if (GooglePlayServicesUtil.isUserRecoverableError(mSignInError)) {
+    private void displayError(int errorCode) {
+        if (GooglePlayServicesUtil.isUserRecoverableError(errorCode)) {
             // Show the default Google Play services error dialog which may still start an intent
             // on our behalf if the user can resolve the issue.
-            GooglePlayServicesUtil.getErrorDialog(mSignInError, this, RC_SIGN_IN,
+            GooglePlayServicesUtil.getErrorDialog(errorCode, this, RC_SIGN_IN,
                     new DialogInterface.OnCancelListener() {
                         @Override
                         public void onCancel(DialogInterface dialog) {
@@ -333,7 +321,7 @@ public class MainActivity extends FragmentActivity implements
                     }).show();
         } else {
             // No default Google Play Services error, display a Toast
-            String errorMsg = "Google Play services error could not be resolved: " + mSignInError;
+            String errorMsg = "Google Play services error could not be resolved: " + errorCode;
             Log.e(TAG, errorMsg);
 
             Toast.makeText(this, errorMsg, Toast.LENGTH_SHORT).show();
