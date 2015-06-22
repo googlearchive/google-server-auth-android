@@ -75,16 +75,20 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
         mActivity = activity;
     }
 
+    // [START on_check_server_authorization]
     @Override
     public CheckResult onCheckServerAuthorization(String idToken, Set<Scope> scopeSet) {
         Log.i(TAG, "Checking if server is authorized.");
-        Log.i(TAG, "Mocking server has refresh token: " + String.valueOf(mServerHasToken));
 
-        if (!mServerHasToken) {
+        // Check if the server has a token.  Since this callback executes in a background
+        // thread it is OK to do synchronous network access in this check.
+        boolean serverHasToken = serverHasTokenFor(idToken);
+        Log.i(TAG, "Server has token: " + String.valueOf(serverHasToken));
+
+        if (!serverHasToken) {
             // Server does not have a valid refresh token, so request a new
             // auth code which can be exchanged for one.  This will cause the user to see the
-            // consent dialog and be prompted to grant offline access. This callback occurs on a
-            // background thread so it is OK to do synchronous network access.
+            // consent dialog and be prompted to grant offline access.
 
             // Ask the server which scopes it would like to have for offline access.  This
             // can be distinct from the scopes granted to the client.  By getting these values
@@ -99,6 +103,7 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
                 int responseCode = httpResponse.getStatusLine().getStatusCode();
                 String responseBody = EntityUtils.toString(httpResponse.getEntity());
 
+                // Convert the response to set of Scope objects.
                 if (responseCode == 200) {
                     String[] scopeStrings = responseBody.split(" ");
                     for (String scope : scopeStrings) {
@@ -127,7 +132,9 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
             return CheckResult.newAuthNotRequiredResult();
         }
     }
+    // [END on_check_server_authorization]
 
+    // [START on_upload_server_auth_code]
     @Override
     public boolean onUploadServerAuthCode(String idToken, String serverAuthCode) {
         // Upload the serverAuthCode to the server, which will attempt to exchange it for
@@ -139,7 +146,8 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
         HttpPost httpPost = new HttpPost(EXCHANGE_TOKEN_URL);
 
         try {
-            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(1);
+            List<NameValuePair> nameValuePairs = new ArrayList<NameValuePair>(2);
+            nameValuePairs.add(new BasicNameValuePair("idToken", idToken));
             nameValuePairs.add(new BasicNameValuePair("serverAuthCode", serverAuthCode));
             httpPost.setEntity(new UrlEncodedFormEntity(nameValuePairs));
 
@@ -149,6 +157,7 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
             Log.i(TAG, "Code: " + statusCode);
             Log.i(TAG, "Resp: " + responseBody);
 
+            // [START_EXCLUDE]
             // Show Toast on UI Thread
             mActivity.runOnUiThread(new Runnable() {
                 @Override
@@ -156,6 +165,7 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
                     Toast.makeText(mActivity, responseBody, Toast.LENGTH_LONG).show();
                 }
             });
+            // [END_EXCLUDE]
             return (statusCode == 200);
         } catch (ClientProtocolException e) {
             Log.e(TAG, "Error in auth code exchange.", e);
@@ -165,6 +175,7 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
             return false;
         }
     }
+    // [END on_upload_server_auth_code]
 
    public void checkServerAuthConfiguration(String webClientId) {
         // Check that the WEB_CLIENT_ID and SERVER_BASE_URL have been correctly
@@ -184,6 +195,12 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
 
             dialog.show();
         }
+    }
+
+    private boolean serverHasTokenFor(String idToken) {
+        // TODO: This method is a stub, in a real application we would make an HTTP
+        // request to the server here.
+        return mServerHasToken;
     }
 
     public void setServerHasToken(boolean serverHasToken) {
