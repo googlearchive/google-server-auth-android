@@ -54,12 +54,12 @@ public class ServerAuthHandler implements GoogleApiClient.ServerAuthCodeCallback
     private static final String SERVER_BASE_URL = "SERVER_BASE_URL";
 
     // URL where the client should GET the scopes that the server would like granted
-    // before asking for a serverAuthCode
-    private static final String EXCHANGE_TOKEN_URL = SERVER_BASE_URL + "/exchangetoken";
+    // before asking for a serverAuthCode.
+    private static final String SELECT_SCOPES_URL = SERVER_BASE_URL + "/selectscopes";
 
     // URL where the client should POST the serverAuthCode so that the server can exchange
-    // it for a refresh token,
-    private static final String SELECT_SCOPES_URL = SERVER_BASE_URL + "/selectscopes";
+    // it for a refresh token.
+    private static final String EXCHANGE_TOKEN_URL = SERVER_BASE_URL + "/exchangetoken";
 
     // Used to mock the state of a server that would receive an auth code to exchange
     // for a refresh token,  If true, the client will assume that the server has the
